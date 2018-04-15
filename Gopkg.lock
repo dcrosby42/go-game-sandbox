@@ -10,7 +10,10 @@
 [[projects]]
   branch = "master"
   name = "github.com/go-gl/gl"
-  packages = ["v3.3-core/gl"]
+  packages = [
+    "v3.3-core/gl",
+    "v4.1-core/gl"
+  ]
   revision = "68e2537930806bfcee1b92a0e14b4e9b8bb3a3e3"
 
 [[projects]]
@@ -40,6 +43,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6dc906a38735ae1b3c013e158ab789c63100ef15e1ed134d94e07731c9ff6a58"
+  inputs-digest = "8c237042047d15fc7f32b3bd1dd03d0ce1e480c1790f76a2f041f79cf82a8ccf"
   solver-name = "gps-cdcl"
   solver-version = 1
