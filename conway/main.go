@@ -14,15 +14,21 @@ import (
 )
 
 const (
-	width  = 500
-	height = 500
+	width   = 500
+	height  = 500
+	rows    = 10
+	columns = 10
 )
 
 var (
-	triangle = []float32{
-		0, 0.5, 0, // top
-		-0.5, -0.5, 0, // left
-		0.5, -0.5, 0, // right
+	square = []float32{
+		-0.5, 0.5, 0, // top-left
+		-0.5, -0.5, 0, // bot-left
+		0.5, -0.5, 0, // bot-right
+
+		-0.5, 0.5, 0, // top-left
+		0.5, -0.5, 0, // bot-right
+		0.5, 0.5, 0, // top-right
 	}
 )
 
@@ -34,11 +40,11 @@ func main() {
 
 	program := initOpenGL()
 
-	vao := makeVao(triangle)
+	// vao := makeVao(square)
+	cells := makeCells()
 
 	for !window.ShouldClose() {
-		draw(vao, window, program)
-		// TODO
+		draw(cells, window, program)
 	}
 }
 
@@ -87,12 +93,15 @@ func initOpenGL() uint32 {
 	return prog
 }
 
-func draw(vao uint32, window *glfw.Window, program uint32) {
+func draw(cells [][]*Cell, window *glfw.Window, program uint32) {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(program)
 
-	gl.BindVertexArray(vao)
-	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(triangle)/3))
+	for x := range cells {
+		for _, c := range cells[x] {
+			c.Draw()
+		}
+	}
 
 	glfw.PollEvents()
 	window.SwapBuffers()
@@ -153,4 +162,60 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 	}
 
 	return shader, nil
+}
+
+type Cell struct {
+	Drawable uint32
+	NumPts   int32
+	X, Y     int
+}
+
+func (me Cell) Draw() {
+	gl.BindVertexArray(me.Drawable)
+	gl.DrawArrays(gl.TRIANGLES, 0, me.NumPts) //XXX int32(len(square)/3))
+}
+
+func makeCells() [][]*Cell {
+	cells := make([][]*Cell, rows, rows)
+	for x := 0; x < rows; x++ {
+		for y := 0; y < columns; y++ {
+			c := newCell(x, y)
+			cells[x] = append(cells[x], c)
+		}
+	}
+
+	return cells
+}
+
+func newCell(x, y int) *Cell {
+	points := make([]float32, len(square), len(square))
+	copy(points, square)
+
+	for i := 0; i < len(points); i++ {
+		var position float32
+		var size float32
+		switch i % 3 {
+		case 0:
+			size = 1.0 / float32(columns)
+			position = float32(x) * size
+		case 1:
+			size = 1.0 / float32(rows)
+			position = float32(y) * size
+		default:
+			continue
+		}
+
+		if points[i] < 0 {
+			points[i] = (position * 2) - 1
+		} else {
+			points[i] = ((position + size) * 2) - 1
+		}
+	}
+
+	return &Cell{
+		Drawable: makeVao(points),
+		NumPts:   int32(len(square) / 3),
+		X:        x,
+		Y:        y,
+	}
 }
