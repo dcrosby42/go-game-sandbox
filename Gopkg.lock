@@ -27,6 +27,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/ojrac/opensimplex-go"
+  packages = ["."]
+  revision = "c0d2b8b324684d1e69e72eaf01f69ff700e3396a"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/image"
   packages = ["math/f32"]
   revision = "f315e440302883054d0c2bd85486878cb4f8572c"
@@ -34,6 +40,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "937c60774f7302abc257913c316d4ebc351e5116c1453ebcf56ec6527b2e300d"
+  inputs-digest = "6dc906a38735ae1b3c013e158ab789c63100ef15e1ed134d94e07731c9ff6a58"
   solver-name = "gps-cdcl"
   solver-version = 1
