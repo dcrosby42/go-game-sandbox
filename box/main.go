@@ -13,12 +13,13 @@ import (
 	"github.com/go-gl/gl/v3.3-core/gl"
 	_ "github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/go-gl/mathgl/mgl32"
 )
 
 const (
 	width  = 500
 	height = 500
-	fps    = 15
+	fps    = 30
 )
 
 func main() {
@@ -31,17 +32,39 @@ func main() {
 
 	box := MakeCube()
 
+	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(width)/height, 0.01, 20.0)
+	projectionUniform := gl.GetUniformLocation(program, gl.Str("projection\x00"))
+
+	camera := mgl32.LookAtV(mgl32.Vec3{3, 3, 3}, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
+	cameraUniform := gl.GetUniformLocation(program, gl.Str("camera\x00"))
+
+	model := mgl32.Ident4()
+	modelUniform := gl.GetUniformLocation(program, gl.Str("model\x00"))
+
+	gl.UseProgram(program)
+	gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
+	gl.UniformMatrix4fv(cameraUniform, 1, false, &camera[0])
+	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
+
+	var angle float32
+
 	for !window.ShouldClose() {
 		t := time.Now()
+
+		// Update the model-level transform matrix:
+		angle += (3.1415926 / 6) / 12
+		model = mgl32.HomogRotate3D(angle, mgl32.Vec3{0, 1, 0})
 
 		// BEGIND DRAW
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		gl.UseProgram(program)
 
+		// Set the model xform into the shader:
+		gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
+
+		// Draw box
 		gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
-
 		box.Draw()
-
 		gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 
 		glfw.PollEvents()
@@ -100,9 +123,15 @@ func initOpenGL() uint32 {
 const (
 	vertexShaderSource = `
     #version 410
-    in vec3 vp;
+
+		uniform mat4 projection;
+		uniform mat4 camera;
+		uniform mat4 model;
+
+    in vec3 vert;
+
     void main() {
-        gl_Position = vec4(vp, 1.0);
+        gl_Position = projection * camera * model * vec4(vert, 1);
     }
 ` + "\x00"
 
@@ -114,6 +143,24 @@ const (
     }
 ` + "\x00"
 )
+
+// var vertexShader = `
+// #version 330
+//
+// uniform mat4 projection;
+// uniform mat4 camera;
+// uniform mat4 model;
+//
+// in vec3 vert;
+// in vec2 vertTexCoord;
+//
+// out vec2 fragTexCoord;
+//
+// void main() {
+//     fragTexCoord = vertTexCoord;
+//     gl_Position = projection * camera * model * vec4(vert, 1);
+// }
+// ` + "\x00"
 
 func compileShader(source string, shaderType uint32) (uint32, error) {
 	shader := gl.CreateShader(shaderType)
