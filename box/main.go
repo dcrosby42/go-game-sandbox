@@ -185,11 +185,11 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 	return shader, nil
 }
 
-func MakeCube() *helpers.Drawable {
+func MakeCube() helpers.Drawable {
 	pts := RectPrism(0, 0, 0, 1, 1, 1)
 	tris := int32(len(pts) / 2)
 	vao := helpers.MakeVao(pts)
-	return &helpers.Drawable{
+	return &helpers.DrawableVertexArray{
 		Mode:     gl.TRIANGLES,
 		Drawable: vao,
 		First:    0,
