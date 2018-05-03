@@ -6,8 +6,10 @@ import (
 )
 
 type Options struct {
-	Width, Height int
-	Title         string
+	Title     string
+	Width     int
+	Height    int
+	Resizable bool
 }
 
 func New(opts Options) (*glfw.Window, error) {
@@ -16,8 +18,13 @@ func New(opts Options) (*glfw.Window, error) {
 		return nil, err
 	}
 
-	glfw.WindowHint(glfw.ContextVersionMajor, 3)
-	glfw.WindowHint(glfw.ContextVersionMinor, 3)
+	if opts.Resizable {
+		glfw.WindowHint(glfw.Resizable, glfw.True)
+	} else {
+		glfw.WindowHint(glfw.Resizable, glfw.False)
+	}
+	glfw.WindowHint(glfw.ContextVersionMajor, 4)
+	glfw.WindowHint(glfw.ContextVersionMinor, 1)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, gl.TRUE)
 
@@ -33,5 +40,9 @@ func New(opts Options) (*glfw.Window, error) {
 	glfw.SwapInterval(1) // enable vsync
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.CULL_FACE)
+
+	// version := gl.GoStr(gl.GetString(gl.VERSION))
+	// log.Println("OpenGL version", version)
+
 	return win, nil
 }
