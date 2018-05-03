@@ -3,10 +3,8 @@ package main
 // https://kylewbanks.com/blog/tutorial-opengl-with-golang-part-1-hello-opengl
 
 import (
-	"fmt"
 	"log"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/dcrosby42/go-game-sandbox/helpers"
@@ -25,58 +23,65 @@ const (
 func main() {
 	runtime.LockOSThread()
 
-	window := initGlfw()
+	window := newGlfwWindow()
 	defer glfw.Terminate()
 
-	program := initOpenGL()
+	initOpenGL()
 
-	box := MakeCube()
+	mainView := NewProgram()
 
 	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(width)/height, 0.01, 20.0)
-	projectionUniform := gl.GetUniformLocation(program, gl.Str("projection\x00"))
 
-	camera := mgl32.LookAtV(mgl32.Vec3{3, 3, 3}, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
-	cameraUniform := gl.GetUniformLocation(program, gl.Str("camera\x00"))
+	camera := Camera{
+		Up:    mgl32.Vec3{0, 1, 0},
+		Eye:   mgl32.Vec3{3, 3, 3},
+		Focus: mgl32.Vec3{0, 0, 0},
+	}
+	// camera := mgl32.LookAtV(mgl32.Vec3{3, 3, 3}, mgl32.Vec3{0, 0, 0},
 
-	model := mgl32.Ident4()
-	modelUniform := gl.GetUniformLocation(program, gl.Str("model\x00"))
+	objects := []Object{
+		MakeBox(),
+		MakeBox(),
+	}
+	objects[1].Location[0] = -2
 
-	gl.UseProgram(program)
-	gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
-	gl.UniformMatrix4fv(cameraUniform, 1, false, &camera[0])
-	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
-
-	var angle float32
+	mainView.Use()
+	mainView.SetProjection(projection)
+	mainView.SetCamera(camera.Matrix())
 
 	for !window.ShouldClose() {
 		t := time.Now()
 
-		// Update the model-level transform matrix:
-		angle += (3.1415926 / 6) / 12
-		model = mgl32.HomogRotate3D(angle, mgl32.Vec3{0, 1, 0})
+		// Update box's rotation
+		objects[0].Rotation[1] += (3.1415926 / 6) / 12
+		objects[1].Rotation[1] += (3.1415926 / 6) / 12
+		camera.Eye[1] -= 0.05
+		if camera.Eye[1] < 0 {
+			camera.Eye[1] = 0
+		}
 
-		// BEGIND DRAW
+		// == BEGIN DRAW
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		gl.UseProgram(program)
 
-		// Set the model xform into the shader:
-		gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
+		mainView.Use()
 
-		// Draw box
-		gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
-		box.Draw()
-		gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+		mainView.SetCamera(camera.Matrix())
 
-		glfw.PollEvents()
+		for _, obj := range objects {
+			mainView.SetModel(obj.Matrix())
+			obj.Draw()
+		}
+
 		window.SwapBuffers()
-		// END DRAW
+		// == END DRAW
 
 		time.Sleep(time.Second/time.Duration(fps) - time.Since(t))
+		glfw.PollEvents()
 	}
 }
 
-// initGlfw initializes glfw and returns a Window to use.
-func initGlfw() *glfw.Window {
+// initializes glfw and returns a Window to use.
+func newGlfwWindow() *glfw.Window {
 	if err := glfw.Init(); err != nil {
 		panic(err)
 	}
@@ -97,102 +102,60 @@ func initGlfw() *glfw.Window {
 }
 
 // initOpenGL initializes OpenGL and returns an intiialized program.
-func initOpenGL() uint32 {
+func initOpenGL() {
 	if err := gl.Init(); err != nil {
 		panic(err)
 	}
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	log.Println("OpenGL version", version)
-
-	vertexShader, err := compileShader(vertexShaderSource, gl.VERTEX_SHADER)
-	if err != nil {
-		panic(err)
-	}
-	fragmentShader, err := compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
-	if err != nil {
-		panic(err)
-	}
-
-	prog := gl.CreateProgram()
-	gl.AttachShader(prog, vertexShader)
-	gl.AttachShader(prog, fragmentShader)
-	gl.LinkProgram(prog)
-	return prog
 }
 
-const (
-	vertexShaderSource = `
-    #version 410
-
-		uniform mat4 projection;
-		uniform mat4 camera;
-		uniform mat4 model;
-
-    in vec3 vert;
-
-    void main() {
-        gl_Position = projection * camera * model * vec4(vert, 1);
-    }
-` + "\x00"
-
-	fragmentShaderSource = `
-    #version 410
-    out vec4 frag_colour;
-    void main() {
-        frag_colour = vec4(1, 1, 1, 1);
-    }
-` + "\x00"
-)
-
-// var vertexShader = `
-// #version 330
-//
-// uniform mat4 projection;
-// uniform mat4 camera;
-// uniform mat4 model;
-//
-// in vec3 vert;
-// in vec2 vertTexCoord;
-//
-// out vec2 fragTexCoord;
-//
-// void main() {
-//     fragTexCoord = vertTexCoord;
-//     gl_Position = projection * camera * model * vec4(vert, 1);
-// }
-// ` + "\x00"
-
-func compileShader(source string, shaderType uint32) (uint32, error) {
-	shader := gl.CreateShader(shaderType)
-
-	csources, free := gl.Strs(source)
-	gl.ShaderSource(shader, 1, csources, nil)
-	free()
-	gl.CompileShader(shader)
-
-	var status int32
-	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength int32
-		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
-
-		log := strings.Repeat("\x00", int(logLength+1))
-		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(log))
-
-		return 0, fmt.Errorf("failed to compile %v: %v", source, log)
-	}
-
-	return shader, nil
-}
-
-func MakeCube() *helpers.Drawable {
+func MakeCube() helpers.Drawable {
 	pts := RectPrism(0, 0, 0, 1, 1, 1)
 	tris := int32(len(pts) / 2)
 	vao := helpers.MakeVao(pts)
-	return &helpers.Drawable{
+	return &helpers.DrawableVertexArray{
 		Mode:     gl.TRIANGLES,
 		Drawable: vao,
 		First:    0,
 		Count:    tris,
 	}
+}
+
+type Object struct {
+	helpers.Drawable
+	Location mgl32.Vec3
+	Rotation mgl32.Vec3
+}
+
+func (me Object) Matrix() mgl32.Mat4 {
+	rotX := mgl32.HomogRotate3DX(me.Rotation[0])
+	rotY := mgl32.HomogRotate3DY(me.Rotation[1])
+	rotZ := mgl32.HomogRotate3DZ(me.Rotation[2])
+	rot := rotX.Mul4(rotY).Mul4(rotZ)
+
+	trans := mgl32.Translate3D(me.Location[0], me.Location[1], me.Location[2])
+
+	return trans.Mul4(rot)
+}
+
+type Camera struct {
+	Eye, Focus, Up mgl32.Vec3
+}
+
+func (me Camera) Matrix() mgl32.Mat4 {
+	return mgl32.LookAtV(
+		me.Eye,
+		me.Focus,
+		me.Up,
+	)
+}
+
+func MakeBox() (box Object) {
+	// box.Matrix = mgl32.Ident4()
+	// box.Drawable = MakeCube()
+	box.Drawable = helpers.Wireframe{MakeCube()}
+	box.Location = mgl32.Vec3{0, 0, 0}
+	box.Rotation = mgl32.Vec3{0, 0, 0}
+	return
 }
