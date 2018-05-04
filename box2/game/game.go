@@ -8,11 +8,11 @@ import (
 )
 
 type State struct {
-	Width    int
-	Height   int
-	MainView Program
-	Camera   Camera
-	Objects  []Object
+	Width   int
+	Height  int
+	Shader  ShaderProgram
+	Camera  Camera
+	Objects []Object
 }
 
 type Action struct{}
@@ -24,11 +24,11 @@ func Init(s *State) *State {
 	if s.Height <= 0 {
 		s.Height = 500
 	}
-	s.MainView = NewProgram()
-	s.MainView.Use()
+	s.Shader = MakeShader()
+	s.Shader.Use()
 	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(s.Width)/float32(s.Height), 0.01, 20.0)
-	s.MainView.SetProjection(projection)
-	// s.MainView.SetCamera(camera.Matrix())
+	s.Shader.SetProjection(projection)
+	// s.Shader.SetCamera(camera.Matrix())
 
 	s.Camera = Camera{
 		Up:    mgl32.Vec3{0, 1, 0},
@@ -59,12 +59,12 @@ func Update(s *State, action *Action) *State {
 }
 
 func Draw(s *State) {
-	s.MainView.Use()
+	s.Shader.Use()
 
-	s.MainView.SetCamera(s.Camera.Matrix())
+	s.Shader.SetCamera(s.Camera.Matrix())
 
 	for _, obj := range s.Objects {
-		s.MainView.SetModel(obj.Matrix())
+		s.Shader.SetModel(obj.Matrix())
 		obj.Draw()
 	}
 }

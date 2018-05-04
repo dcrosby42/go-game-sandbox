@@ -33,14 +33,14 @@ const (
 ` + "\x00"
 )
 
-type Program struct {
+type ShaderProgram struct {
 	program        uint32
 	uni_projection int32
 	uni_camera     int32
 	uni_model      int32
 }
 
-func NewProgram() (prog Program) {
+func MakeShader() (prog ShaderProgram) {
 	p := NewGlProgram()
 	prog.program = p
 	prog.uni_projection = gl.GetUniformLocation(p, gl.Str("projection\x00"))
@@ -49,16 +49,16 @@ func NewProgram() (prog Program) {
 	return
 }
 
-func (me *Program) Use() {
+func (me *ShaderProgram) Use() {
 	gl.UseProgram(me.program)
 }
-func (me *Program) SetProjection(proj mgl32.Mat4) {
+func (me *ShaderProgram) SetProjection(proj mgl32.Mat4) {
 	gl.UniformMatrix4fv(me.uni_projection, 1, false, &proj[0])
 }
-func (me *Program) SetCamera(camera mgl32.Mat4) {
+func (me *ShaderProgram) SetCamera(camera mgl32.Mat4) {
 	gl.UniformMatrix4fv(me.uni_camera, 1, false, &camera[0])
 }
-func (me *Program) SetModel(model mgl32.Mat4) {
+func (me *ShaderProgram) SetModel(model mgl32.Mat4) {
 	gl.UniformMatrix4fv(me.uni_model, 1, false, &model[0])
 }
 
