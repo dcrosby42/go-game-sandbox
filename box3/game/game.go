@@ -26,7 +26,14 @@ func Init(s *State) *State {
 		s.Height = 500
 	}
 
-	diffuseShader := helpers.MustMakeDiffuseShader()
+	diffuseShader, err := helpers.LoadShaderProgramFromFile(
+		"shaders/diffuse_texture.vert.glsl",
+		"shaders/diffuse_texture.frag.glsl",
+	)
+	if err != nil {
+		panic(err)
+	}
+
 	crateTexture := helpers.MustLoadTexture("assets/crate1_diffuse.png")
 
 	cube1 := helpers.CreateCube(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
