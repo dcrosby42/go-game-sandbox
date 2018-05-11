@@ -1,6 +1,8 @@
 package game
 
 import (
+	"fmt"
+
 	"github.com/dcrosby42/go-game-sandbox/box3/camera"
 	"github.com/dcrosby42/go-game-sandbox/helpers"
 	_ "github.com/go-gl/gl/v4.1-core/gl"
@@ -63,16 +65,23 @@ func Init(s *State) (*State, error) {
 }
 
 func Update(s *State, action *Action) *State {
-	// Update box's rotation
-	s.Angle += (3.1415926 / 6) / 12
-	s.Renderables[0].Rotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
-	s.Renderables[1].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
+	switch action.Type {
+	case Tick:
+		// Update box's rotation
+		s.Angle += (3.1415926 / 6) / 12
+		s.Renderables[0].Rotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
+		s.Renderables[1].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
 
-	// descend camera
-	eye := &s.Camera.Eye
-	eye[1] -= 0.05
-	if eye[1] < 0 {
-		eye[1] = 0
+		// descend camera
+		eye := &s.Camera.Eye
+		eye[1] -= 0.05
+		if eye[1] < 0 {
+			eye[1] = 0
+		}
+	case MouseMove:
+		if action.MouseMove.InBounds {
+			fmt.Printf("MouseMove(%f,%f, %v)\n", action.MouseMove.X, action.MouseMove.Y, action.MouseMove.InBounds)
+		}
 	}
 
 	return s
