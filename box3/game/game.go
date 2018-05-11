@@ -16,9 +16,7 @@ type State struct {
 	Projection  mgl.Mat4
 }
 
-type Action struct{}
-
-func Init(s *State) *State {
+func Init(s *State) (*State, error) {
 	if s.Width <= 0 {
 		s.Width = 500
 	}
@@ -31,7 +29,7 @@ func Init(s *State) *State {
 		"shaders/diffuse_texture.frag.glsl",
 	)
 	if err != nil {
-		panic(err)
+		return s, err
 	}
 
 	crateTexture := helpers.MustLoadTexture("assets/crate1_diffuse.png")
@@ -61,7 +59,7 @@ func Init(s *State) *State {
 		Focus: mgl.Vec3{0, 0, 0},
 	}
 
-	return s
+	return s, nil
 }
 
 func Update(s *State, action *Action) *State {
