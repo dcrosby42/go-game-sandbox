@@ -1,8 +1,6 @@
 package game
 
 import (
-	"fmt"
-
 	"github.com/dcrosby42/go-game-sandbox/box3/camera"
 	"github.com/dcrosby42/go-game-sandbox/helpers"
 	_ "github.com/go-gl/gl/v4.1-core/gl"
@@ -78,10 +76,21 @@ func Update(s *State, action *Action) *State {
 		if eye[1] < 0 {
 			eye[1] = 0
 		}
+	case Keyboard:
+		// fmt.Printf("game.Update() Keyboard: %#v\n", action.Keyboard)
+	case Char:
+		// fmt.Printf("game.Update() Char: %s mods=%d\n", action.Char.String(), action.Char.Modifier)
+	case MouseEnter:
+		// fmt.Printf("game.Update() MouseEnter: %v\n", action.MouseEnter.Entered)
 	case MouseMove:
-		if action.MouseMove.InBounds {
-			fmt.Printf("MouseMove(%f,%f, %v)\n", action.MouseMove.X, action.MouseMove.Y, action.MouseMove.InBounds)
-		}
+		// if action.MouseMove.InBounds {
+		// fmt.Printf("MouseMove(%f,%f, %v)\n", action.MouseMove.X, action.MouseMove.Y, action.MouseMove.InBounds)
+		// }
+	case MouseButton:
+		// fmt.Printf("game.Update() MouseButton: %#v\n", action.MouseButton)
+	case MouseScroll:
+		// fmt.Printf("game.Update() MouseScroll: %#v\n", action.MouseScroll)
+
 	}
 
 	return s
