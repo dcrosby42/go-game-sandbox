@@ -5,13 +5,14 @@ import (
 )
 
 type Camera struct {
-	Eye, Focus, Up mgl.Vec3
+	Position, WorldUp mgl.Vec3
+	LookTarget        *mgl.Vec3
 }
 
 func (me Camera) Matrix() mgl.Mat4 {
 	return mgl.LookAtV(
-		me.Eye,
-		me.Focus,
-		me.Up,
+		me.Position,
+		*me.LookTarget,
+		me.WorldUp,
 	)
 }

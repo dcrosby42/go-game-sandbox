@@ -53,7 +53,7 @@ func New() (*Harness, error) {
 	}
 
 	// GLFW input guid: http://www.glfw.org/docs/latest/input_guide.html
-	har.DebugInput = true
+	har.DebugInput = false
 
 	win.SetKeyCallback(har.KeyCallback)
 	win.SetCharModsCallback(har.CharModsCallback)
