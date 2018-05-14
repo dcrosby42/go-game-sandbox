@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/dcrosby42/go-game-sandbox/box3/camera"
+	"github.com/dcrosby42/go-game-sandbox/box3/harness/sideeffect"
 	"github.com/dcrosby42/go-game-sandbox/helpers"
 	_ "github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
@@ -29,12 +30,13 @@ type State struct {
 	Angle             float32
 	Projection        mgl.Mat4
 	CameraMoveControl DirControl
+	GameMouse         bool
 }
 type DirControl struct {
 	Up, Left, Down, Right bool
 }
 
-func Init(s *State) (*State, error) {
+func Init(s *State) (*State, sideeffect.Event) {
 	if s.Width <= 0 {
 		s.Width = 500
 	}
@@ -47,7 +49,7 @@ func Init(s *State) (*State, error) {
 		"shaders/diffuse_texture.frag.glsl",
 	)
 	if err != nil {
-		return s, err
+		return s, sideeffect.NewError(err)
 	}
 
 	crateTexture := helpers.MustLoadTexture("assets/crate1_diffuse.png")
@@ -91,16 +93,19 @@ func Init(s *State) (*State, error) {
 
 	s.Camera.Update()
 
-	return s, nil
+	s.GameMouse = true
+	return s, &sideeffect.MouseMode_Game{}
 }
 
-func Update(s *State, action *Action) *State {
+func Update(s *State, action *Action) (*State, sideeffect.Event) {
+	var sideEffect sideeffect.Event
+
 	switch action.Type {
 	case Tick:
 		// Update box's rotation
-		// s.Angle += (3.1415926 / 6) / 12
+		s.Angle += (3.1415926 / 6) / 12
 		// s.Renderables[0].Rotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
-		// s.Renderables[1].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
+		s.Renderables[1].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
 
 		// descend camera
 		// eye := &s.Camera.Eye
@@ -147,12 +152,22 @@ func Update(s *State, action *Action) *State {
 			s.Camera.Update()
 		}
 
+		if glfw.KeyEscape == action.Keyboard.Key && glfw.Press == action.Keyboard.Action {
+			if s.GameMouse {
+				s.GameMouse = false
+				sideEffect = &sideeffect.MouseMode_UI{}
+			} else {
+				s.GameMouse = true
+				sideEffect = &sideeffect.MouseMode_Game{}
+			}
+		}
+
 	case Char:
 		// fmt.Printf("game.Update() Char: %s mods=%d\n", action.Char.String(), action.Char.Modifier)
 	case MouseEnter:
 		// fmt.Printf("game.Update() MouseEnter: %v\n", action.MouseEnter.Entered)
 	case MouseMove:
-		if action.MouseMove.MouseDrive {
+		if s.GameMouse {
 			s.Camera.Yaw -= math.Mod(float64(action.MouseMove.Dx*mouseLookSensitivity), TwoPi)
 			s.Camera.Pitch -= float64(action.MouseMove.Dy * mouseLookSensitivity)
 			s.Camera.Update()
@@ -167,7 +182,10 @@ func Update(s *State, action *Action) *State {
 
 	}
 
-	return s
+	if sideEffect != nil {
+		return s, sideEffect
+	}
+	return s, nil
 }
 
 func Draw(s *State) {

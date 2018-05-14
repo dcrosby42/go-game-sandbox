@@ -2,9 +2,11 @@ package harness
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/dcrosby42/go-game-sandbox/box3/game"
+	"github.com/dcrosby42/go-game-sandbox/box3/harness/sideeffect"
 	"github.com/dcrosby42/go-game-sandbox/window"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	_ "github.com/go-gl/gl/v4.1-core/gl"
@@ -12,15 +14,15 @@ import (
 )
 
 type Harness struct {
-	fps              int
-	width, height    int
-	win              *glfw.Window
-	state            *game.State
-	lastGameTime     float64
-	cursor           CursorState
-	firstPersonMouse bool
+	fps           int
+	width, height int
+	win           *glfw.Window
+	state         *game.State
+	lastGameTime  float64
+	cursor        CursorState
 
-	DebugInput bool
+	DebugInput       bool
+	DebugSideEffects bool
 }
 
 func New() (*Harness, error) {
@@ -37,24 +39,21 @@ func New() (*Harness, error) {
 	}
 
 	state := &game.State{Width: w, Height: h}
-	state, err = game.Init(state)
-	if err != nil {
-		return nil, err
-	}
+	state, sideEffect := game.Init(state)
 
 	har := &Harness{
-		fps:              60,
-		width:            w,
-		height:           h,
-		win:              win,
-		state:            state,
-		lastGameTime:     0,
-		firstPersonMouse: false,
+		fps:          60,
+		width:        w,
+		height:       h,
+		win:          win,
+		state:        state,
+		lastGameTime: 0,
 	}
 
-	// GLFW input guid: http://www.glfw.org/docs/latest/input_guide.html
 	har.DebugInput = false
+	har.DebugSideEffects = true
 
+	// GLFW input guid: http://www.glfw.org/docs/latest/input_guide.html
 	win.SetKeyCallback(har.KeyCallback)
 	win.SetCharModsCallback(har.CharModsCallback)
 	win.SetMouseButtonCallback(har.MouseButtonCallback)
@@ -62,11 +61,12 @@ func New() (*Harness, error) {
 	win.SetCursorEnterCallback(har.CursorEnterCallback)
 	win.SetScrollCallback(har.ScrollCallback)
 
-	if har.firstPersonMouse {
-		win.SetInputMode(glfw.CursorMode, glfw.CursorDisabled) // CursorNormal CursorHidden CursorDisabled
-	} else {
-		win.SetInputMode(glfw.CursorMode, glfw.CursorNormal)
+	err = har.HandleSideEffect(sideEffect)
+	if err != nil {
+		return nil, err
 	}
+
+	// har.MouseModeGame()
 
 	return har, nil
 }
@@ -91,7 +91,7 @@ func (me *Harness) Play() {
 		// UPDATE
 		action.Tick.Gt = gameTime
 		action.Tick.Dt = dt
-		me.state = game.Update(me.state, &action)
+		me.ApplyUpdate(&action)
 
 		// DRAW
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -105,6 +105,45 @@ func (me *Harness) Play() {
 	}
 }
 
+func (me *Harness) ApplyUpdate(action *game.Action) {
+	var e sideeffect.Event
+	me.state, e = game.Update(me.state, action)
+	err := me.HandleSideEffect(e)
+	if err != nil {
+		panic(fmt.Sprintf("FAILED ApplyUpdate() err=%s", err)) // TODO c'mon man, we can do better than panic
+	}
+}
+
+func (me *Harness) HandleSideEffect(e sideeffect.Event) error {
+	if e == nil {
+		return nil
+	}
+	if me.DebugSideEffects {
+		fmt.Printf("Harness.HandleSideEffect(): %v\n", reflect.TypeOf(e))
+	}
+	switch event := e.(type) {
+	case *sideeffect.Error:
+		return event.Error
+	case *sideeffect.MouseMode_Game:
+		me.MouseModeGame()
+	case *sideeffect.MouseMode_UI:
+		me.MouseModeUI()
+	default:
+
+	}
+
+	return nil
+
+}
+
+func (me *Harness) MouseModeGame() {
+	me.win.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
+}
+
+func (me *Harness) MouseModeUI() {
+	me.win.SetInputMode(glfw.CursorMode, glfw.CursorNormal)
+}
+
 func (me *Harness) ScrollCallback(w *glfw.Window, xoff, yoff float64) {
 	action := game.Action{
 		Type: game.MouseScroll,
@@ -113,7 +152,7 @@ func (me *Harness) ScrollCallback(w *glfw.Window, xoff, yoff float64) {
 			Y: yoff,
 		},
 	}
-	me.state = game.Update(me.state, &action)
+	me.ApplyUpdate(&action)
 	if me.DebugInput {
 		fmt.Printf("Harness.ScrollCallback() xoff=%f yoff=%f\n", xoff, yoff)
 	}
@@ -129,7 +168,7 @@ func (me *Harness) MouseButtonCallback(w *glfw.Window, button glfw.MouseButton, 
 		},
 	}
 
-	me.state = game.Update(me.state, &action)
+	me.ApplyUpdate(&action)
 
 	if me.DebugInput {
 		fmt.Printf("Harness.MouseCallback() button=%d action=%d mod=%d\n", button, maction, mod)
@@ -160,40 +199,27 @@ func (me *Harness) CursorPosCallback(w *glfw.Window, x float64, y float64) {
 	action := game.Action{
 		Type: game.MouseMove,
 		MouseMove: &game.MouseMoveAction{
-			PixX:       xpos,
-			PixY:       ypos,
-			PixDx:      dx,
-			PixDy:      dy,
-			X:          nx, // mgl.Clamp(nx, -1, 1),
-			Y:          ny, //mgl.Clamp(ny, -1, 1),
-			Dx:         ndx,
-			Dy:         ndy,
-			InBounds:   inbounds,
-			MouseDrive: me.firstPersonMouse,
+			PixX:     xpos,
+			PixY:     ypos,
+			PixDx:    dx,
+			PixDy:    dy,
+			X:        nx, // mgl.Clamp(nx, -1, 1),
+			Y:        ny, //mgl.Clamp(ny, -1, 1),
+			Dx:       ndx,
+			Dy:       ndy,
+			InBounds: inbounds,
 		},
 	}
-	me.state = game.Update(me.state, &action)
 
+	me.ApplyUpdate(&action)
 	if me.DebugInput {
-		fmt.Printf("Harness.CursorPosCallback(): Pix(%.2f, %.2f) PixD(%.2f, %.2f) Norm(%.4f, %.4f) NormD(%.4f, %.4f) InBounds=%v MouseDrive=%v\n", xpos, ypos, dx, dy, nx, ny, ndx, ndy, inbounds, me.firstPersonMouse)
+		fmt.Printf("Harness.CursorPosCallback(): Pix(%.2f, %.2f) PixD(%.2f, %.2f) Norm(%.4f, %.4f) NormD(%.4f, %.4f) InBounds=%v\n", xpos, ypos, dx, dy, nx, ny, ndx, ndy, inbounds)
 	}
 }
 
 func (me *Harness) KeyCallback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 	if me.DebugInput {
-		actionStr := "?"
-		switch action {
-		case glfw.Press:
-			actionStr = "Press"
-		case glfw.Release:
-			actionStr = "Release"
-		case glfw.Repeat:
-			actionStr = "Repeat"
-		}
-		if key == glfw.KeyEscape {
-			fmt.Printf("Escape\n")
-		}
-		fmt.Printf("Harness.KeyCallback() key='%s' (%d) scancode=%d action=%s mods=%d\n", glfw.GetKeyName(key, scancode), key, scancode, actionStr, mods)
+		fmt.Printf("Harness.KeyCallback() key='%s' (%d) scancode=%d action=%d mods=%d\n", glfw.GetKeyName(key, scancode), key, scancode, action, mods)
 	}
 
 	kaction := game.Action{
@@ -205,17 +231,18 @@ func (me *Harness) KeyCallback(w *glfw.Window, key glfw.Key, scancode int, actio
 			Modifier: mods,
 		},
 	}
-	me.state = game.Update(me.state, &kaction)
+	me.ApplyUpdate(&kaction)
 
-	if key == glfw.KeyEscape && action == glfw.Press {
-		if me.firstPersonMouse {
-			me.firstPersonMouse = false
-			me.win.SetInputMode(glfw.CursorMode, glfw.CursorNormal)
-		} else {
-			me.firstPersonMouse = true
-			me.win.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
-		}
-	}
+	//XXX
+	// if key == glfw.KeyEscape && action == glfw.Press {
+	// 	if me.firstPersonMouse {
+	// 		me.firstPersonMouse = false
+	// 		me.win.SetInputMode(glfw.CursorMode, glfw.CursorNormal)
+	// 	} else {
+	// 		me.firstPersonMouse = true
+	// 		me.win.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
+	// 	}
+	// }
 }
 
 func (me *Harness) CharModsCallback(w *glfw.Window, char rune, mods glfw.ModifierKey) {
@@ -226,7 +253,7 @@ func (me *Harness) CharModsCallback(w *glfw.Window, char rune, mods glfw.Modifie
 			Modifier: mods,
 		},
 	}
-	me.state = game.Update(me.state, &chaction)
+	me.ApplyUpdate(&chaction)
 
 	if me.DebugInput {
 		fmt.Printf("Harness.CharModsCallback() char='%s'\n", string(char))
@@ -240,7 +267,7 @@ func (me *Harness) CursorEnterCallback(w *glfw.Window, entered bool) {
 			Entered: entered,
 		},
 	}
-	me.state = game.Update(me.state, &eaction)
+	me.ApplyUpdate(&eaction)
 
 	if me.DebugInput {
 		fmt.Printf("Harness.CursorEnterCallback() entered=%v\n", entered)
