@@ -110,7 +110,8 @@ func Update(s *State, action *Action) *State {
 		// }
 		// move camera
 		speed := float32(cameraMoveSpeed * action.Tick.Dt)
-		if updatePosition(&s.Camera.Position, &s.CameraMoveControl, speed) {
+		// if movePositionSimple(&s.Camera.Position, &s.CameraMoveControl, speed) {
+		if movePositionFps(&s.Camera.Position, &s.Camera.DirFront, &s.Camera.DirLeft, &s.Camera.DirUp, &s.CameraMoveControl, speed) {
 			s.Camera.Update()
 		}
 
@@ -223,7 +224,7 @@ func updateArrowDirControl(wasd *DirControl, ka *KeyboardAction) {
 	}
 }
 
-func updatePosition(pos *mgl.Vec3, dirControl *DirControl, dist float32) (changed bool) {
+func movePositionSimple(pos *mgl.Vec3, dirControl *DirControl, dist float32) (changed bool) {
 	if dirControl.Up {
 		pos[2] -= dist
 		changed = true
@@ -238,6 +239,30 @@ func updatePosition(pos *mgl.Vec3, dirControl *DirControl, dist float32) (change
 	}
 	if dirControl.Left {
 		pos[0] -= dist
+		changed = true
+	}
+	return changed
+}
+
+func movePositionFps(pos, front, left, up *mgl.Vec3, dirControl *DirControl, dist float32) (changed bool) {
+	if dirControl.Up {
+		// pos[2] -= dist
+		*pos = pos.Add(front.Mul(dist))
+		changed = true
+	}
+	if dirControl.Down {
+		// pos[2] += dist
+		*pos = pos.Sub(front.Mul(dist))
+		changed = true
+	}
+	if dirControl.Right {
+		// pos[0] += dist
+		*pos = pos.Sub(left.Mul(dist))
+		changed = true
+	}
+	if dirControl.Left {
+		*pos = pos.Add(left.Mul(dist))
+		// pos[0] -= dist
 		changed = true
 	}
 	return changed
