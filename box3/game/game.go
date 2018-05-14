@@ -1,6 +1,8 @@
 package game
 
 import (
+	"math"
+
 	"github.com/dcrosby42/go-game-sandbox/box3/camera"
 	"github.com/dcrosby42/go-game-sandbox/helpers"
 	_ "github.com/go-gl/gl/v4.1-core/gl"
@@ -8,12 +10,21 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 )
 
-const cameraMoveSpeed = 5
+const (
+	Pi                   = math.Pi
+	Pi_2                 = math.Pi / 2
+	Pi_4                 = math.Pi / 4
+	Pi_6                 = math.Pi / 6
+	TwoPi                = math.Pi * 2
+	cameraMoveSpeed      = 5
+	mouseLookSensitivity = 0.25
+)
 
 type State struct {
 	Width             int
 	Height            int
 	Camera            camera.Camera
+	StartCamera       camera.Camera
 	Renderables       []*helpers.Renderable
 	Angle             float32
 	Projection        mgl.Mat4
@@ -50,22 +61,35 @@ func Init(s *State) (*State, error) {
 	cube2 := helpers.CreateCube(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
 	cube2.Shader = diffuseShader
 	cube2.Color = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-	cube2.Location = mgl.Vec3{-2, 0, 0}
+	cube2.Location = mgl.Vec3{-2, -2, 0}
 	cube2.Tex0 = crateTexture
+
+	cube3 := helpers.CreateCube(-0.25, -0.25, -0.25, 0.25, 0.25, 0.25)
+	cube3.Shader = diffuseShader
+	cube3.Color = mgl.Vec4{0.25, 1.0, 0.25, 1.0}
+	cube3.Location = mgl.Vec3{2, 2, 0}
+	cube3.Tex0 = crateTexture
 
 	s.Renderables = []*helpers.Renderable{
 		cube1,
 		cube2,
+		cube3,
 	}
 
-	s.Projection = mgl.Perspective(mgl.DegToRad(45.0), float32(s.Width)/float32(s.Height), 0.01, 20.0)
+	s.Projection = mgl.Perspective(Pi_4, float32(s.Width)/float32(s.Height), 0.01, 20.0)
 
 	s.Camera = camera.Camera{
-		WorldUp: mgl.Vec3{0, 1, 0},
-		// Eye:   mgl.Vec3{3, 3, 3},
-		Position:   mgl.Vec3{3, 0, 3},
-		LookTarget: &mgl.Vec3{0, 0, 0},
+		Position:  mgl.Vec3{0, 0, 7},
+		Yaw:       Pi_2,
+		Pitch:     0,
+		MinPitch:  Pi/-2 + 0.0001,
+		MaxPitch:  Pi/2 - 0.0001,
+		UseTarget: false,
+		Target:    &mgl.Vec3{0, 0, 0},
 	}
+	s.StartCamera = s.Camera //copy
+
+	s.Camera.Update()
 
 	return s, nil
 }
@@ -86,13 +110,40 @@ func Update(s *State, action *Action) *State {
 		// }
 		// move camera
 		speed := float32(cameraMoveSpeed * action.Tick.Dt)
-		updatePosition(&s.Camera.Position, &s.CameraMoveControl, speed)
+		if updatePosition(&s.Camera.Position, &s.CameraMoveControl, speed) {
+			s.Camera.Update()
+		}
 
 	case Keyboard:
 		updateWasdDirControl(&s.CameraMoveControl, action.Keyboard)
 
+		// Reset Camera
 		if action.Keyboard.Key == glfw.Key0 && action.Keyboard.Action == glfw.Press {
-			s.Camera.Position = mgl.Vec3{0, 0, 0}
+			s.Camera = s.StartCamera
+			s.Camera.Update()
+		}
+
+		if action.Keyboard.Key == glfw.KeyT && action.Keyboard.Action == glfw.Press {
+			s.Camera.UseTarget = !s.Camera.UseTarget
+			s.Camera.Update()
+		}
+
+		// Rotate camera via arrow keys
+		if action.Keyboard.Key == glfw.KeyLeft && action.Keyboard.Action == glfw.Press {
+			s.Camera.Yaw += Pi_6 / 2
+			s.Camera.Update()
+		}
+		if action.Keyboard.Key == glfw.KeyRight && action.Keyboard.Action == glfw.Press {
+			s.Camera.Yaw -= Pi_6 / 2
+			s.Camera.Update()
+		}
+		if action.Keyboard.Key == glfw.KeyUp && action.Keyboard.Action == glfw.Press {
+			s.Camera.Pitch += Pi_6 / 2
+			s.Camera.Update()
+		}
+		if action.Keyboard.Key == glfw.KeyDown && action.Keyboard.Action == glfw.Press {
+			s.Camera.Pitch -= Pi_6 / 2
+			s.Camera.Update()
 		}
 
 	case Char:
@@ -100,6 +151,11 @@ func Update(s *State, action *Action) *State {
 	case MouseEnter:
 		// fmt.Printf("game.Update() MouseEnter: %v\n", action.MouseEnter.Entered)
 	case MouseMove:
+		if action.MouseMove.MouseDrive {
+			s.Camera.Yaw -= math.Mod(float64(action.MouseMove.Dx*mouseLookSensitivity), TwoPi)
+			s.Camera.Pitch -= float64(action.MouseMove.Dy * mouseLookSensitivity)
+			s.Camera.Update()
+		}
 		// if action.MouseMove.InBounds {
 		// fmt.Printf("MouseMove(%f,%f, %v)\n", action.MouseMove.X, action.MouseMove.Y, action.MouseMove.InBounds)
 		// }
@@ -114,7 +170,8 @@ func Update(s *State, action *Action) *State {
 }
 
 func Draw(s *State) {
-	cameraView := s.Camera.Matrix()
+	// cameraView := s.Camera.Matrix
+	cameraView := s.Camera.Matrix
 
 	for _, node := range s.Renderables {
 		node.Draw(s.Projection, cameraView)
@@ -166,17 +223,22 @@ func updateArrowDirControl(wasd *DirControl, ka *KeyboardAction) {
 	}
 }
 
-func updatePosition(pos *mgl.Vec3, dirControl *DirControl, dist float32) {
+func updatePosition(pos *mgl.Vec3, dirControl *DirControl, dist float32) (changed bool) {
 	if dirControl.Up {
 		pos[2] -= dist
+		changed = true
 	}
 	if dirControl.Down {
 		pos[2] += dist
+		changed = true
 	}
 	if dirControl.Right {
 		pos[0] += dist
+		changed = true
 	}
 	if dirControl.Left {
 		pos[0] -= dist
+		changed = true
 	}
+	return changed
 }
