@@ -103,9 +103,11 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 	switch action.Type {
 	case Tick:
 		// Update box's rotation
-		s.Angle += (3.1415926 / 6) / 12
+		s.Angle += Pi / 140
 		// s.Renderables[0].Rotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
+		s.Renderables[0].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{1, 0, 0})
 		s.Renderables[1].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
+		s.Renderables[2].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 0, 1})
 
 		// descend camera
 		// eye := &s.Camera.Eye
