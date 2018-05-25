@@ -11,10 +11,6 @@ import (
 	"github.com/go-gl/glfw/v3.2/glfw"
 )
 
-const (
-	fps = 60
-)
-
 func main() {
 	runtime.LockOSThread()
 	defer glfw.Terminate()

@@ -103,8 +103,8 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 	switch action.Type {
 	case Tick:
 		// Update box's rotation
-		s.Angle += Pi / 140
-		// s.Renderables[0].Rotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
+		s.Angle += Pi / 2 * float32(action.Tick.Dt)
+
 		s.Renderables[0].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{1, 0, 0})
 		s.Renderables[1].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
 		s.Renderables[2].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 0, 1})
@@ -182,6 +182,10 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 	case MouseScroll:
 		// fmt.Printf("game.Update() MouseScroll: %#v\n", action.MouseScroll)
 
+	case WindowSize:
+		s.Width = action.WindowSize.Width
+		s.Height = action.WindowSize.Height
+		calcProjectionMatrix(s)
 	}
 
 	if sideEffect != nil {
@@ -286,4 +290,8 @@ func movePositionFps(pos, front, left, up *mgl.Vec3, dirControl *DirControl, dis
 		changed = true
 	}
 	return changed
+}
+
+func calcProjectionMatrix(s *State) {
+	s.Projection = mgl.Perspective(Pi_4, float32(s.Width)/float32(s.Height), 0.01, 20.0)
 }

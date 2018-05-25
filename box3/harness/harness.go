@@ -30,9 +30,10 @@ func New() (*Harness, error) {
 	h := 500
 
 	win, err := window.New(window.Options{
-		Title:  "Box",
-		Width:  w,
-		Height: h,
+		Title:     "Box",
+		Width:     w,
+		Height:    h,
+		Resizable: true,
 	})
 	if err != nil {
 		return nil, err
@@ -42,7 +43,7 @@ func New() (*Harness, error) {
 	state, sideEffect := game.Init(state)
 
 	har := &Harness{
-		fps:          60,
+		fps:          120,
 		width:        w,
 		height:       h,
 		win:          win,
@@ -60,6 +61,7 @@ func New() (*Harness, error) {
 	win.SetCursorPosCallback(har.CursorPosCallback)
 	win.SetCursorEnterCallback(har.CursorEnterCallback)
 	win.SetScrollCallback(har.ScrollCallback)
+	win.SetFramebufferSizeCallback(har.FramebufferSizeCallback)
 
 	err = har.HandleSideEffect(sideEffect)
 	if err != nil {
@@ -284,4 +286,21 @@ func (me *Harness) CursorEnterCallback(w *glfw.Window, entered bool) {
 type CursorState struct {
 	x, y     float32
 	tracking bool
+}
+
+func (me *Harness) FramebufferSizeCallback(w *glfw.Window, fbWidth, fbHeight int) {
+	me.width = fbWidth
+	me.height = fbHeight
+	waction := game.Action{
+		Type: game.WindowSize,
+		WindowSize: &game.WindowSizeAction{
+			Width:  fbWidth,
+			Height: fbHeight,
+		},
+	}
+	me.ApplyUpdate(&waction)
+
+	if me.DebugInput {
+		fmt.Printf("Harness.FramebufferSizeCallback(%d, %d)\n", fbWidth, fbHeight)
+	}
 }

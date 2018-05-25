@@ -14,6 +14,7 @@ const (
 	MouseScroll
 	Keyboard
 	Char
+	WindowSize
 )
 
 type Action struct {
@@ -25,6 +26,7 @@ type Action struct {
 	MouseScroll *MouseScrollAction
 	Keyboard    *KeyboardAction
 	Char        *CharAction
+	WindowSize  *WindowSizeAction
 }
 
 type TickAction struct {
@@ -46,6 +48,10 @@ type CharAction struct {
 
 func (me CharAction) String() string {
 	return string(me.Char)
+}
+
+type WindowSizeAction struct {
+	Width, Height int
 }
 
 type MouseEnterAction struct {
