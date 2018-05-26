@@ -302,11 +302,14 @@ type CursorState struct {
 func (me *Harness) FramebufferSizeCallback(w *glfw.Window, fbWidth, fbHeight int) {
 	me.fbWidth = fbWidth
 	me.fbHeight = fbHeight
+	me.winWidth, me.winHeight = me.win.GetSize()
 	waction := game.Action{
 		Type: game.WindowSize,
 		WindowSize: &game.WindowSizeAction{
-			Width:  fbWidth,
-			Height: fbHeight,
+			Width:    me.winWidth,
+			Height:   me.winHeight,
+			FbWidth:  fbWidth,
+			FbHeight: fbHeight,
 		},
 	}
 	me.ApplyUpdate(&waction)

@@ -51,7 +51,8 @@ func (me CharAction) String() string {
 }
 
 type WindowSizeAction struct {
-	Width, Height int
+	FbWidth, FbHeight int
+	Width, Height     int
 }
 
 type MouseEnterAction struct {
