@@ -23,8 +23,8 @@ func New(opts Options) (*glfw.Window, error) {
 	} else {
 		glfw.WindowHint(glfw.Resizable, glfw.False)
 	}
-	glfw.WindowHint(glfw.ContextVersionMajor, 4)
-	glfw.WindowHint(glfw.ContextVersionMinor, 1)
+	glfw.WindowHint(glfw.ContextVersionMajor, 3)
+	glfw.WindowHint(glfw.ContextVersionMinor, 3)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, gl.TRUE)
 
