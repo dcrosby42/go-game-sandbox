@@ -1,14 +1,17 @@
 package game
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/dcrosby42/go-game-sandbox/box3/camera"
 	"github.com/dcrosby42/go-game-sandbox/box3/harness/sideeffect"
 	"github.com/dcrosby42/go-game-sandbox/helpers"
+	"github.com/go-gl/gl/v3.3-core/gl"
 	_ "github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
+	"github.com/nullboundary/glfont"
 )
 
 const (
@@ -31,6 +34,7 @@ type State struct {
 	Projection        mgl.Mat4
 	CameraMoveControl DirControl
 	GameMouse         bool
+	Font              *glfont.Font
 }
 type DirControl struct {
 	Up, Left, Down, Right bool
@@ -39,9 +43,11 @@ type DirControl struct {
 func Init(s *State) (*State, sideeffect.Event) {
 	if s.Width <= 0 {
 		s.Width = 500
+		fmt.Printf("game.Init - default width %d\n", s.Width)
 	}
 	if s.Height <= 0 {
 		s.Height = 500
+		fmt.Printf("game.Init - default height %d\n", s.Height)
 	}
 
 	diffuseShader, err := helpers.LoadShaderProgramFromFile(
@@ -94,6 +100,9 @@ func Init(s *State) (*State, sideeffect.Event) {
 	s.Camera.Update()
 
 	s.GameMouse = true
+
+	resetFonts(s)
+
 	return s, &sideeffect.MouseMode_Game{}
 }
 
@@ -170,8 +179,6 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 		// fmt.Printf("game.Update() MouseEnter: %v\n", action.MouseEnter.Entered)
 	case MouseMove:
 		if s.GameMouse {
-			s.Camera.Yaw -= math.Mod(float64(action.MouseMove.Dx*mouseLookSensitivity), TwoPi)
-			s.Camera.Pitch -= float64(action.MouseMove.Dy * mouseLookSensitivity)
 			s.Camera.Yaw -= math.Mod(float64(action.MouseMove.PixDx*mouseLookSensitivity), TwoPi)
 			s.Camera.Pitch -= float64(action.MouseMove.PixDy * mouseLookSensitivity)
 			s.Camera.Update()
@@ -187,7 +194,8 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 	case WindowSize:
 		s.Width = action.WindowSize.Width
 		s.Height = action.WindowSize.Height
-		calcProjectionMatrix(s)
+		recalcProjectionMatrix(s)
+		resetFonts(s)
 	}
 
 	if sideEffect != nil {
@@ -197,12 +205,26 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 }
 
 func Draw(s *State) {
-	// cameraView := s.Camera.Matrix
 	cameraView := s.Camera.Matrix
 
 	for _, node := range s.Renderables {
 		node.Draw(s.Projection, cameraView)
 	}
+
+	drawText(s)
+}
+
+func drawText(s *State) {
+	if s.Font == nil {
+		return
+	}
+	gl.Disable(gl.CULL_FACE) // glfont seems to do backward triangles?
+
+	//set color and draw text
+	s.Font.SetColor(1.0, 1.0, 1.0, 1.0)         //r,g,b,a font color
+	s.Font.Printf(100, 100, 1.0, "Hello World") //x,y,scale,string,printf args
+
+	gl.Enable(gl.CULL_FACE)
 }
 
 func updateWasdDirControl(wasd *DirControl, ka *KeyboardAction) {
@@ -294,6 +316,20 @@ func movePositionFps(pos, front, left, up *mgl.Vec3, dirControl *DirControl, dis
 	return changed
 }
 
-func calcProjectionMatrix(s *State) {
+func recalcProjectionMatrix(s *State) {
 	s.Projection = mgl.Perspective(Pi_4, float32(s.Width)/float32(s.Height), 0.01, 20.0)
+}
+
+func resetFonts(s *State) {
+	var err error
+	fontFile := "/Library/Fonts/Trebuchet MS.ttf"
+	w := s.Width
+	h := s.Height
+	fmt.Printf("!!!! Resetting font %q based on screen dim [%d, %d]\n", fontFile, w, h)
+
+	s.Font, err = glfont.LoadFont(fontFile, int32(52), w, h, nil)
+	if err != nil {
+		fmt.Printf("!! ERROR game.resetFonts(%q) err=%s\n", fontFile, err)
+		s.Font = nil
+	}
 }

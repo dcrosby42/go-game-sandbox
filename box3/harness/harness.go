@@ -14,40 +14,42 @@ import (
 )
 
 type Harness struct {
-	fps           int
-	width, height int
-	win           *glfw.Window
-	state         *game.State
-	lastGameTime  float64
-	cursor        CursorState
+	fps                 int
+	winWidth, winHeight int
+	fbWidth, fbHeight   int
+	win                 *glfw.Window
+	state               *game.State
+	lastGameTime        float64
+	cursor              CursorState
 
 	DebugInput       bool
 	DebugSideEffects bool
 }
 
 func New() (*Harness, error) {
-	w := 500
-	h := 500
+	winWidth := 500
+	winHeight := 500
 
 	win, err := window.New(window.Options{
 		Title:     "Box",
-		Width:     w,
-		Height:    h,
+		Width:     winWidth,
+		Height:    winHeight,
 		Resizable: true,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	state := &game.State{Width: w, Height: h}
-	state, sideEffect := game.Init(state)
+	fbWidth, fbHeight := win.GetFramebufferSize()
 
 	har := &Harness{
 		fps:          120,
-		width:        w,
-		height:       h,
+		winWidth:     winWidth,
+		winHeight:    winHeight,
+		fbWidth:      fbWidth,
+		fbHeight:     fbHeight,
 		win:          win,
-		state:        state,
+		state:        nil,
 		lastGameTime: 0,
 	}
 
@@ -62,6 +64,10 @@ func New() (*Harness, error) {
 	win.SetCursorEnterCallback(har.CursorEnterCallback)
 	win.SetScrollCallback(har.ScrollCallback)
 	win.SetFramebufferSizeCallback(har.FramebufferSizeCallback)
+
+	state := &game.State{Width: fbWidth, Height: fbHeight}
+	state, sideEffect := game.Init(state)
+	har.state = state
 
 	err = har.HandleSideEffect(sideEffect)
 	if err != nil {
@@ -78,6 +84,11 @@ func (me *Harness) Play() {
 		Type: game.Tick,
 		Tick: &game.TickAction{},
 	}
+
+	gl.Enable(gl.DEPTH_TEST)
+	gl.DepthFunc(gl.LESS)
+	gl.ClearColor(0.0, 0.0, 0.0, 0.0)
+
 	for !me.win.ShouldClose() {
 		t := time.Now()
 		gameTime := glfw.GetTime()
@@ -191,8 +202,8 @@ func (me *Harness) CursorPosCallback(w *glfw.Window, x float64, y float64) {
 	me.cursor.x = xpos
 	me.cursor.y = ypos
 
-	w2 := float32(me.width) / 2
-	h2 := float32(me.height) / 2
+	w2 := float32(me.winWidth) / 2
+	h2 := float32(me.winHeight) / 2
 	nx := (xpos - w2) / w2
 	ny := -(ypos - h2) / h2
 	inbounds := nx >= -1.0 && nx <= 1.0 && ny <= 1.0 && ny >= -1.0
@@ -289,8 +300,8 @@ type CursorState struct {
 }
 
 func (me *Harness) FramebufferSizeCallback(w *glfw.Window, fbWidth, fbHeight int) {
-	me.width = fbWidth
-	me.height = fbHeight
+	me.fbWidth = fbWidth
+	me.fbHeight = fbHeight
 	waction := game.Action{
 		Type: game.WindowSize,
 		WindowSize: &game.WindowSizeAction{
