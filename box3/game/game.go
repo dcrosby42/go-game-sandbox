@@ -18,7 +18,7 @@ const (
 	Pi_6                 = math.Pi / 6
 	TwoPi                = math.Pi * 2
 	cameraMoveSpeed      = 5
-	mouseLookSensitivity = 0.25
+	mouseLookSensitivity = 0.001
 )
 
 type State struct {
@@ -172,6 +172,8 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 		if s.GameMouse {
 			s.Camera.Yaw -= math.Mod(float64(action.MouseMove.Dx*mouseLookSensitivity), TwoPi)
 			s.Camera.Pitch -= float64(action.MouseMove.Dy * mouseLookSensitivity)
+			s.Camera.Yaw -= math.Mod(float64(action.MouseMove.PixDx*mouseLookSensitivity), TwoPi)
+			s.Camera.Pitch -= float64(action.MouseMove.PixDy * mouseLookSensitivity)
 			s.Camera.Update()
 		}
 		// if action.MouseMove.InBounds {
