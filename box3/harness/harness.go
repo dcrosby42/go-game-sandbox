@@ -53,8 +53,8 @@ func New() (*Harness, error) {
 		lastGameTime: 0,
 	}
 
-	har.DebugInput = false
-	har.DebugSideEffects = true
+	// har.DebugInput = true
+	har.DebugSideEffects = false
 
 	// GLFW input guid: http://www.glfw.org/docs/latest/input_guide.html
 	win.SetKeyCallback(har.KeyCallback)
@@ -65,7 +65,7 @@ func New() (*Harness, error) {
 	win.SetScrollCallback(har.ScrollCallback)
 	win.SetFramebufferSizeCallback(har.FramebufferSizeCallback)
 
-	state := &game.State{Width: fbWidth, Height: fbHeight}
+	state := &game.State{Width: winWidth, Height: winHeight}
 	state, sideEffect := game.Init(state)
 	har.state = state
 

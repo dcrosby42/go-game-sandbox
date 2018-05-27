@@ -63,7 +63,6 @@ type MouseMoveAction struct {
 	PixX, PixY, PixDx, PixDy float32
 	X, Y, Dx, Dy             float32
 	InBounds                 bool
-	MouseDrive               bool // if true, mouse is "first person" style... unbounded
 }
 
 // MouseButton:

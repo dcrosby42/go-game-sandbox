@@ -33,9 +33,19 @@ type State struct {
 	Angle             float32
 	Projection        mgl.Mat4
 	CameraMoveControl DirControl
-	GameMouse         bool
+	Mouse             Mouse
+	FontSize          int
+	FontFile          string
 	Font              *glfont.Font
 }
+type Mouse struct {
+	NormX, NormY float32
+	PixX, PixY   float32
+	InBounds     bool
+	GameMode     bool
+	Buttons      map[glfw.MouseButton]glfw.Action
+}
+
 type DirControl struct {
 	Up, Left, Down, Right bool
 }
@@ -49,6 +59,7 @@ func Init(s *State) (*State, sideeffect.Event) {
 		s.Height = 500
 		fmt.Printf("game.Init - default height %d\n", s.Height)
 	}
+	s.Mouse = Mouse{}
 
 	diffuseShader, err := helpers.LoadShaderProgramFromFile(
 		"shaders/diffuse_texture.vert.glsl",
@@ -99,8 +110,15 @@ func Init(s *State) (*State, sideeffect.Event) {
 
 	s.Camera.Update()
 
-	s.GameMouse = true
+	s.Mouse.Buttons = make(map[glfw.MouseButton]glfw.Action)
+	s.Mouse.GameMode = true
 
+	s.FontSize = 40
+	s.FontFile = "/Library/Fonts/Trebuchet MS.ttf"
+	// s.FontFile = "/Library/Fonts/Microsoft/Consolas.ttf"
+	// s.FontFile = "/Library/Fonts/Microsoft/Abadi MT Condensed Light"
+	// s.FontFile = "/Users/crosby/Downloads/open-sans/OpenSans-Light.ttf"
+	// s.FontFile = "/Library/Fonts/Andale Mono.ttf"
 	resetFonts(s)
 
 	return s, &sideeffect.MouseMode_Game{}
@@ -164,11 +182,11 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 		}
 
 		if glfw.KeyEscape == action.Keyboard.Key && glfw.Press == action.Keyboard.Action {
-			if s.GameMouse {
-				s.GameMouse = false
+			if s.Mouse.GameMode {
+				s.Mouse.GameMode = false
 				sideEffect = &sideeffect.MouseMode_UI{}
 			} else {
-				s.GameMouse = true
+				s.Mouse.GameMode = true
 				sideEffect = &sideeffect.MouseMode_Game{}
 			}
 		}
@@ -178,16 +196,22 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 	case MouseEnter:
 		// fmt.Printf("game.Update() MouseEnter: %v\n", action.MouseEnter.Entered)
 	case MouseMove:
-		if s.GameMouse {
-			s.Camera.Yaw -= math.Mod(float64(action.MouseMove.PixDx*mouseLookSensitivity), TwoPi)
-			s.Camera.Pitch -= float64(action.MouseMove.PixDy * mouseLookSensitivity)
+		a := action.MouseMove
+		s.Mouse.PixX = a.PixX
+		s.Mouse.PixY = a.PixY
+		s.Mouse.NormX = a.X
+		s.Mouse.NormY = a.Y
+		if s.Mouse.GameMode {
+			s.Camera.Yaw -= math.Mod(float64(a.PixDx*mouseLookSensitivity), TwoPi)
+			s.Camera.Pitch -= float64(a.PixDy * mouseLookSensitivity)
 			s.Camera.Update()
 		}
 		// if action.MouseMove.InBounds {
 		// fmt.Printf("MouseMove(%f,%f, %v)\n", action.MouseMove.X, action.MouseMove.Y, action.MouseMove.InBounds)
 		// }
 	case MouseButton:
-		// fmt.Printf("game.Update() MouseButton: %#v\n", action.MouseButton)
+		s.Mouse.Buttons[action.MouseButton.Button] = action.MouseButton.Action
+		fmt.Printf("game.Update() MouseButton: %#v @ pix=(%d, %d) norm=(%.2f, %.2f)\n", action.MouseButton, int(math.Round(float64(s.Mouse.PixX))), int(math.Round(float64(s.Mouse.PixY))), s.Mouse.NormX, s.Mouse.NormY)
 	case MouseScroll:
 		// fmt.Printf("game.Update() MouseScroll: %#v\n", action.MouseScroll)
 
@@ -220,9 +244,13 @@ func drawText(s *State) {
 	}
 	gl.Disable(gl.CULL_FACE) // glfont seems to do backward triangles?
 
+	x := float32(0)
+	y := float32(30)
+	scale := float32(1)
 	//set color and draw text
-	s.Font.SetColor(1.0, 1.0, 1.0, 1.0)         //r,g,b,a font color
-	s.Font.Printf(100, 100, 1.0, "Hello World") //x,y,scale,string,printf args
+	s.Font.SetColor(1.0, 1.0, 1.0, 1.0)       //r,g,b,a font color
+	s.Font.Printf(x, y, scale, "Hello World") //x,y,scale,string,printf args
+	// s.Font.Printf(s.Mouse.PixX, s.Mouse.PixY, 1.0, "Hello World") //x,y,scale,string,printf args
 
 	gl.Enable(gl.CULL_FACE)
 }
@@ -322,14 +350,13 @@ func recalcProjectionMatrix(s *State) {
 
 func resetFonts(s *State) {
 	var err error
-	fontFile := "/Library/Fonts/Trebuchet MS.ttf"
 	w := s.Width
 	h := s.Height
-	fmt.Printf("!!!! Resetting font %q based on screen dim [%d, %d]\n", fontFile, w, h)
+	// fmt.Printf("!!!! Resetting font %q based on screen dim [%d, %d]\n", fontFile, w, h)
 
-	s.Font, err = glfont.LoadFont(fontFile, int32(52), w, h, nil)
+	s.Font, err = glfont.LoadFont(s.FontFile, int32(s.FontSize), w, h, nil)
 	if err != nil {
-		fmt.Printf("!! ERROR game.resetFonts(%q) err=%s\n", fontFile, err)
+		fmt.Printf("!! ERROR game.resetFonts(%q) err=%s\n", s.FontFile, err)
 		s.Font = nil
 	}
 }
