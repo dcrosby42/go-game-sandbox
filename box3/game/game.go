@@ -6,12 +6,12 @@ import (
 
 	"github.com/dcrosby42/go-game-sandbox/box3/camera"
 	"github.com/dcrosby42/go-game-sandbox/box3/harness/sideeffect"
+	"github.com/dcrosby42/go-game-sandbox/glfont"
 	"github.com/dcrosby42/go-game-sandbox/helpers"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	_ "github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
-	"github.com/nullboundary/glfont"
 )
 
 const (
@@ -36,7 +36,9 @@ type State struct {
 	Mouse             Mouse
 	FontSize          int
 	FontFile          string
-	Font              *glfont.Font
+	FontTimer         float64
+	FontPositioner    *helpers.Positioner
+	Font              *glfont.Font2
 }
 type Mouse struct {
 	NormX, NormY float32
@@ -115,6 +117,9 @@ func Init(s *State) (*State, sideeffect.Event) {
 
 	s.FontSize = 40
 	s.FontFile = "/Library/Fonts/Trebuchet MS.ttf"
+	s.FontPositioner = helpers.NewPositioner()
+	// s.FontPositioner.LocalRotation = mgl.QuatRotate(Pi_6, mgl.Vec3{0, 1, 0})
+	s.FontPositioner.Location = mgl.Vec3{0, 0, -3}
 	// s.FontFile = "/Library/Fonts/Microsoft/Consolas.ttf"
 	// s.FontFile = "/Library/Fonts/Microsoft/Abadi MT Condensed Light"
 	// s.FontFile = "/Users/crosby/Downloads/open-sans/OpenSans-Light.ttf"
@@ -136,6 +141,7 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 		s.Renderables[1].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 1, 0})
 		s.Renderables[2].LocalRotation = mgl.QuatRotate(s.Angle, mgl.Vec3{0, 0, 1})
 
+		s.FontTimer = action.Tick.Gt
 		// descend camera
 		// eye := &s.Camera.Eye
 		// eye[1] -= 0.05
@@ -219,7 +225,7 @@ func Update(s *State, action *Action) (*State, sideeffect.Event) {
 		s.Width = action.WindowSize.Width
 		s.Height = action.WindowSize.Height
 		recalcProjectionMatrix(s)
-		resetFonts(s)
+		// resetFonts(s)
 	}
 
 	if sideEffect != nil {
@@ -235,22 +241,28 @@ func Draw(s *State) {
 		node.Draw(s.Projection, cameraView)
 	}
 
-	drawText(s)
+	drawText(s, s.Projection, cameraView)
 }
 
-func drawText(s *State) {
+func drawText(s *State, perspective, view mgl.Mat4) {
 	if s.Font == nil {
 		return
 	}
 	gl.Disable(gl.CULL_FACE) // glfont seems to do backward triangles?
 
 	x := float32(0)
-	y := float32(30)
+	y := float32(45)
 	scale := float32(1)
 	//set color and draw text
-	s.Font.SetColor(1.0, 1.0, 1.0, 1.0)       //r,g,b,a font color
-	s.Font.Printf(x, y, scale, "Hello World") //x,y,scale,string,printf args
-	// s.Font.Printf(s.Mouse.PixX, s.Mouse.PixY, 1.0, "Hello World") //x,y,scale,string,printf args
+	s.Font.SetColor(1.0, 1.0, 1.0, 1.0) //r,g,b,a font color
+
+	fontPos := s.FontPositioner
+	model := fontPos.GetTransform()
+	transmat := perspective.Mul4(model)
+	// transmat = mgl.Ident4()
+
+	s.Font.Tprintf(x, y, scale, transmat, "Hello World") //x,y,scale,string,printf args
+	// s.Font.Printf(x, y, scale, "Hello World") //x,y,scale,string,printf args
 
 	gl.Enable(gl.CULL_FACE)
 }
@@ -354,7 +366,7 @@ func resetFonts(s *State) {
 	h := s.Height
 	// fmt.Printf("!!!! Resetting font %q based on screen dim [%d, %d]\n", fontFile, w, h)
 
-	s.Font, err = glfont.LoadFont(s.FontFile, int32(s.FontSize), w, h, nil)
+	s.Font, err = glfont.LoadFont2(s.FontFile, int32(s.FontSize), w, h, nil)
 	if err != nil {
 		fmt.Printf("!! ERROR game.resetFonts(%q) err=%s\n", s.FontFile, err)
 		s.Font = nil

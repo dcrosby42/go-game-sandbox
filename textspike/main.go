@@ -1,22 +1,12 @@
 package main
 
-// import (
-// "log"
-// "runtime"
-// "github.com/go-gl/gl/v3.3-core/gl"
-// _ "github.com/go-gl/gl/v4.1-core/gl"
-// "github.com/go-gl/glfw/v3.2/glfw"
-// "github.com/nullboundary/glfont"
-// )
-
 import (
 	"log"
 	"runtime"
 
-	// "github.com/go-gl/gl/all-core/gl"
+	"github.com/dcrosby42/go-game-sandbox/glfont"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.1/glfw"
-	"github.com/nullboundary/glfont"
 )
 
 const windowWidth = 1920
