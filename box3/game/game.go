@@ -97,6 +97,25 @@ func Init(s *State) (*State, sideeffect.Event) {
 		cube3,
 	}
 
+	w := 15           // how many blocks wide
+	h := 15           // how many blocks long
+	bs := float32(1)  // block side length
+	yc := float32(-3) // fixed y coord
+	xc_off := -(bs * float32(w) / 2)
+	zc_off := -(bs * float32(h) / 2)
+	for i := 0; i < w; i++ {
+		for j := 0; j < h; j++ {
+			xc := float32(i)*bs + xc_off
+			zc := float32(j)*bs + zc_off
+			cube := helpers.CreateCube(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+			cube.Shader = diffuseShader
+			cube.Color = mgl.Vec4{1.0, 0.75, 0.6, 1.0}
+			cube.Location = mgl.Vec3{xc, yc, zc}
+			cube.Tex0 = crateTexture
+			s.Renderables = append(s.Renderables, cube)
+		}
+	}
+
 	s.Projection = mgl.Perspective(Pi_4, float32(s.Width)/float32(s.Height), 0.01, 20.0)
 
 	s.Camera = camera.Camera{
